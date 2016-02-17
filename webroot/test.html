@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta name="viewport" content="initial-scale=1.0, user-scalable=no">
+    <meta charset="utf-8">
+    <style>
+      html, body {
+        height: 100%;
+        margin: 0;
+        padding: 0;
+      }
+      #map {
+      	display:none;
+        height: 80%;
+        top:20%;
+      }
+
+
+    </style>
+
+     <link rel="stylesheet" href="/DocFinder/webroot/css/bootstrap.min.css">
+    <title>Place search pagination</title>
+<script>
+
+var map;
+var resultsarray= new Array();
+
+
+function initMap() {
+	var zip=getParameterByName('zipcode');;
+	var pyrmont;
+    var rad=getParameterByName('radius');
+    var geocoder = new google.maps.Geocoder();
+
+
+  if(zip.length!=0){
+
+  	geocoder.geocode( { 'address': zip}, function(results, status) {
+      if (status == google.maps.GeocoderStatus.OK) {
+      	pyrmont=results[0].geometry.location;
+      	console.log('p'+pyrmont);
+
+      	 map = new google.maps.Map(document.getElementById('map'), {
+		    center: pyrmont,
+		    zoom: 15
+		  });
+
+		  var service = new google.maps.places.PlacesService(map);
+		  console.log('pp'+pyrmont);
+		  service.nearbySearch({
+		    location: pyrmont,
+		    radius: rad,
+		    types: ['doctor','hospital','pharmacy','health','physicians','dentist'],
+		  },
+		  function processResults(results, status, pagination) {
+		  console.log('pr called');
+			  if (status !== google.maps.places.PlacesServiceStatus.OK) {
+			  	console.log(status);
+			    return;
+			  } else {
+					for(var i=0;i<results.length;i++){
+						service.getDetails({
+				   			placeId: results[i].place_id
+				   		},
+				   		function(place,status){
+				   			console.log(place);
+				   			if(status === google.maps.places.PlacesServiceStatus.OK){
+				   				$('<div class="well"><a><h4>'+place.name+'</h4></a>'+
+								'<p>'+place.formatted_address+'</p>'+
+								'<a target="_blank" href="viewdoctor.html?addrs='+place.name+" "+place.formatted_address+'">'+'View on map'+'</a></div>').appendTo('#docs-div');
+				   			}
+				   		});
+					}
+				    if (pagination.hasNextPage) {
+				    	 pagination.nextPage();
+				    }
+			  }
+		});
+
+      } else {
+        alert("Geocode was not successful for the following reason: " + status);
+      }
+    });
+  }
+}
+
+
+function getParameterByName(name) {
+    name = name.replace(/[\[]/, "\\[").replace(/[\]]/, "\\]");
+    var regex = new RegExp("[\\?&]" + name + "=([^&#]*)"),
+        results = regex.exec(location.search);
+    return results === null ? "" : decodeURIComponent(results[1].replace(/\+/g, " "));
+}
+
+   </script>
+
+  </head>
+  <body>
+
+
+	<div id="map"></div>
+	<div id="docs-div" class="well">
+	</div>
+	<script src="/DocFinder/webroot/scripts/jquery.min.js"></script>
+	<script src="/DocFinder/webroot/scripts/bootstrap.min.js"></script>
+    <script async src="https://maps.googleapis.com/maps/api/js?key=AIzaSyB-YyzS_SXIeh4QAhGtW2o4UCe4NWvSXnw&signed_in=true&libraries=places&callback=initMap" async defer></script>
+  </body>
+</html>

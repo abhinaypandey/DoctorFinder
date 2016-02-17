@@ -7,4 +7,4 @@ var('czip') = array(
         -username='root', // configure this
         -password='abhinay'// configure this
         )
-    ]
+]

@@ -1,0 +1,83 @@
+<!doctype html>
+<html>
+<head>
+    <title>Doc Finder</title>
+    <link rel="stylesheet" href="../webroot/css/bootstrap.min.css">
+    <script src="../webroot/scripts/jquery.min.js"></script>
+	<script src="../webroot/scripts/bootstrap.min.js"></script>
+	
+</head>
+<body>
+	<div class="container">
+		<h3>Specialist Details</h3>
+		<div id="docDetails">
+		</div>
+		<div id="googleMap" style="width:700px;height:400px;" class="well"></div>
+	</div>
+	
+<script>
+	var spec=getParameterByName('specialist');
+	var fname=getParameterByName('fn');
+	var lname=getParameterByName('ln');
+	var addrs=getParameterByName('addrs');
+	var zip=getParameterByName('zip');
+	
+	$(document).ready(function(){
+        if(fname.length>0 && lname.length>0){
+            $('<p><strong>'+fname+ ' ' + lname+'</strong></br>'+addrs+'<p>').appendTo('#docDetails');
+        }
+        else{
+            $('<p><strong>'+fname+'</strong></br>'+addrs+'<p>').appendTo('#docDetails');
+        }
+		
+	});
+
+function initMap(){
+	var geocoder=new google.maps.Geocoder();
+	var loc;
+	var map;
+	geocoder.geocode( { 'address': addrs}, function(results, status) {
+      if (status == google.maps.GeocoderStatus.OK) {
+      	loc=results[0].geometry.location;
+      	
+      	 map = new google.maps.Map(document.getElementById('googleMap'), {
+		    center: loc,
+		    zoom: 15
+		  });
+
+	      	var markerContent='<p><strong>'+fname+ ' ' + lname+'</strong></br>'+addrs+'<p>';
+			var infowindow = new google.maps.InfoWindow({
+			   content: markerContent
+			});
+			
+			var marker = new google.maps.Marker({
+			  position: loc,
+			  map: map,
+			  title: addrs
+			});
+			
+			marker.addListener('click', function() {
+			  infowindow.open(map, marker);
+			});
+  
+      	}
+      	else{
+      		alert("Geocode was not successful for the following reason: " + status);
+      	}
+      });
+	
+	
+}
+
+function getParameterByName(name) {
+    name = name.replace(/[\[]/, "\\[").replace(/[\]]/, "\\]");
+    var regex = new RegExp("[\\?&]" + name + "=([^&#]*)"),
+        results = regex.exec(location.search);
+    return results === null ? "" : decodeURIComponent(results[1].replace(/\+/g, " "));
+}
+
+</script>
+
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyB-YyzS_SXIeh4QAhGtW2o4UCe4NWvSXnw&callback=initMap" type="text/javascript">></script>
+</body>
+</html>

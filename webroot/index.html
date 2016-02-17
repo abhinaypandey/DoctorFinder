@@ -1,0 +1,358 @@
+<!doctype html>
+<html>
+<head>
+    <title>Doc Finder</title>
+    <script src="//code.jquery.com/jquery-1.10.2.js"></script>
+    <script src="../webroot/scripts/bootstrap.min.js"></script>
+    <link rel="stylesheet" href="../webroot/css/bootstrap.min.css">
+    <link rel="stylesheet" href="//code.jquery.com/ui/1.11.4/themes/smoothness/jquery-ui.css">
+    <script src="//code.jquery.com/ui/1.11.4/jquery-ui.js"></script>
+    
+<style>
+
+  #map {
+    display:none;
+    height: 80%;
+    top:20%;
+  }
+
+  #zip-select >li:hover{
+    background-color:blue;
+    color:white;
+  }
+
+  #docs-div{
+    margin-top:3%;
+  }
+  </style>
+</head>
+
+<body>
+      <span id="ajaxLoader">
+        <img id="loading-image" src="/DocFinder/webroot/images/ajax-loader.gif" style="display:none;margin-top:1%;z-index:2;float:right"/>
+     </span>
+     <div style="padding:10px;">
+      <div class="well">
+      <form name="docFinderForm">
+        <div style="width:90%;display:inline;">
+          <div style="width:20%;float:left;"> 
+           <input id="zip" type="text" name="zipcode" placeholder="zipcode" value="" style="width:50%;float:left;margin-right:3%;"/>
+             <span id="zip-drop" style="display:none;overflow-y:scroll;z-index: 1;position: absolute;width:140px;height:100px;background-color: #FFF;top:60px;left: 30px;border: 1px solid #808080;">
+             <ul id="zip-select" style="list-style:none;top:5px"></ul>
+              </span>
+          </div>
+           
+
+          <div style="width:60%;float:left;">
+             <input id="radius" name="radius" type="text" value="" placeholder="radius(in meters)" style="width:20%;float:left;margin-right:3%;"/>
+              <div id="radius-slider" style="width:40%;float:left;margin-right:3%;"></div>
+          </div>
+
+         <div style="width:60%;float:left;">
+             <input id="locality" name="locality" type="text" value="" placeholder="city" style="width:20%;float:left;margin-right:3%;"/>
+             <input id="administrative_area_level_1" name="state" type="text" value="" placeholder="state" style="width:20%;float:left;margin-right:3%;"/>
+          </div>
+                  
+          <div style="width:60%;float:left;">  
+              <select id="specs" name='doctor'>
+                  <option name="doctor" value="" selected> Choose Specialist
+                  <option name="doctor" value="ARN"> ARN
+                  <option  name="doctor" value="PTH" > PTH
+                  <option  name="doctor" value="FM" > FM
+                  <option  name="doctor" value="HEM" > HEM
+                  <option  name="doctor" value="HO" > HO
+                  <option  name="doctor" value="IM" > IM
+                  <option  name="doctor" value="IMG" > IMG
+                  <option  name="doctor" value="NS" > NS
+                  <option  name="doctor" value="NRP" > NRP
+                  <option  name="doctor" value="ON" > ON
+                  <option  name="doctor" value="PHA" > PHA
+                  <option  name="doctor" value="RO" > RO
+              </select>
+          </div>
+          </div>
+          <button id="queryBtn" type="button" class="btn btn-primary">Search</button> 
+      </form>
+    </div>
+          
+    <div id="map"></div>
+      <div id="docs-div" class="well">
+      </div>
+      <nav >
+        <ul class="pager">
+          <li id="prev-btn" style="display:none"><a href="#">Previous</a></li>
+          <li id="next-btn" style="display:none"><a href="#">Next</a></li>
+        </ul>
+      </nav>
+    </div>
+
+
+<script type="text/javascript">
+ var zip;
+ var rad;
+ var specialist;
+ var page_start=0;
+ var records=20;
+ var record_count;
+               
+$(document).ready(function(){
+  $("#queryBtn").on('click',function(){
+    zip=$('#zip').val();
+     rad=$('#radius').val();
+     var locality=$('#locality').val();
+     specialist=$('select[name="doctor"]').val();
+                                   
+                       
+    if(zip.length!=0 && rad.length!=0){
+         initMap(zip,rad);
+    }
+
+    else if(locality.length!=0){
+        fetchGeocode(locality);
+    }
+
+    else if(specialist!=''){
+
+        loadData(specialist,page_start,records);
+     }
+    else{
+      alert('enter required fields');
+    }
+ });
+
+
+ 
+  $('#zip').on('keyup',function(){
+        $('#zip-select').html('');
+        zip=$.trim($('#zip').val());
+        
+        if(zip.length>=2){
+              $.ajax({
+                  url:'query.lasso',
+                  dataType:'json',
+                  type:'post',
+                  data:{zipkey:zip},
+                  success:function(data){
+                  $.each(data.data,function(k,v){
+                    if(v.length!=0){
+                      $('<li style="cursor:pointer;border-bottom:whitesmoke solid 1px;" onclick="selectZip('+v.zip+');">'+v.zip+'</li>').appendTo("#zip-select");
+                    }
+                  });
+                    var c=$('#zip-select li').length;
+                    if(c>0 ){
+                     $('#zip-drop').show();
+                    }
+                 }
+                
+              });
+        }
+        else{
+              $('#zip-drop').hide();
+        }
+                                                    
+  });
+
+  $('#specs').on('change',function(){
+    page_start=0;
+  });
+  
+  $('#radius-slider').slider({
+      range:'min',
+      min:0,
+      max:50000,
+      slide: function(event,ui){
+          $('#radius').val(ui.value);
+          rad=$('#radius').val();
+      }
+      
+  });
+  
+  $('#radius').on('click',function(){
+      $('#zip-drop').hide();
+  }); 
+
+  $('#next-btn').on('click',function(){
+    if(record_count==20){
+      page_start+=20;
+      loadData(specialist,page_start,records);
+    }
+    else{
+      alert('no data');
+    }
+      
+  });
+
+  $('#prev-btn').on('click',function(){
+    if(page_start!=0){
+      page_start-=20;
+      loadData(specialist,page_start,records);
+    }
+    else{
+      alert('no data');
+    }
+      
+  });
+
+
+});
+
+function selectZip(zip){
+  $('#zip').val(zip);
+  zip=$('#zip').val();
+  $('#zip-drop').hide();
+}
+
+function loadData(specialist,page_start,records){
+  $.ajax({
+      url:'query.lasso',
+      dataType:'json',
+      type:'post',
+      data:{doctor:specialist,start:page_start,records:records},
+      beforeSend:function(){
+        $("#loading-image").show();
+      },
+      success:function(data){
+           record_count=Object.keys(data.data).length;    
+           $('#docs-div').html('');
+           $('#prev-btn').show();
+           $('#next-btn').show();
+           $.each(data.data,function(k,v){
+              var addrs=v.Street+' '+v.locality + ' '+v.city+ ' ' + v.state;
+                $('<div class="well"><a ><h4>'+v.Fname+' '+v.Lname+'</h4></a>'+
+                '<p>'+v.Specialization+'</p>'+
+                '<p>'+v.Street+' ' + v.locality + '</p>'+
+                '<p>'+v.city+'</p>'+
+                '<p>'+v.state+'</p>'+
+                '<p>'+v.zip+'</p>'+
+                '<p>'+v.contact+'</p>'+
+                
+                '<a  target="_blank" href="viewdoctor.html?fn='+v.Fname+'&ln='+v.Lname+'&specialist='+v.Specialization+'&addrs='+addrs+'&zip='+v.zip+'">'+'View on map'+'</a></div>').appendTo('#docs-div');
+                 });
+           
+           $('input[name="zip"]').val('');
+           $("input[name='radius']").val('');
+           $("select[name='doctor']").val('');
+           $("input[name='locality']").val('');
+           $("input[name='state']").val('');
+      },
+      complete: function() {
+        $("#loading-image").hide();
+      }
+                      
+  });
+}
+
+                                                             
+</script>
+
+<script>
+ var map;
+ var resultsarray= new Array();
+ var placeSearch, autocomplete;
+ var componentForm = {
+   locality: 'long_name',
+   administrative_area_level_1: 'short_name'
+ };
+
+function initAutocomplete() {
+  
+  autocomplete = new google.maps.places.Autocomplete((document.getElementById('locality')),{types: ['geocode']});
+      autocomplete.addListener('place_changed', function() {
+
+      var place = autocomplete.getPlace();
+      
+      for (var i = 0; i < place.address_components.length; i++) {
+        var addressType = place.address_components[i].types[0];
+        if (componentForm[addressType]){
+          var val = place.address_components[i][componentForm[addressType]];
+          document.getElementById(addressType).value = val; //some empty entries, need to modify 
+         
+        }
+      }
+  });
+}
+
+
+function initMap(zip,rad) {
+    $('#docs-div').html('');
+    var zip=zip
+    var pyrmont;
+    var rad=rad;
+
+    if(zip.length!=0){
+       fetchGeocode(zip);
+    }
+    else{
+       alert('invalid zip');
+    } 
+}
+
+//geocoding address to fetch place details 
+function fetchGeocode(address){
+  var geocoder = new google.maps.Geocoder();
+  geocoder.geocode( { 'address': address}, function(results, status) {
+      if (status == google.maps.GeocoderStatus.OK) {
+        pyrmont=results[0].geometry.location;
+        console.log('p'+pyrmont);
+        
+         map = new google.maps.Map(document.getElementById('map'), {
+        center: pyrmont,
+        zoom: 15
+      });
+    
+      var service = new google.maps.places.PlacesService(map);
+      var prevResult=new Array();
+      console.log('pp'+pyrmont);
+      if(rad.length==0){
+        rad=5000;
+      }
+      service.nearbySearch({
+        location: pyrmont,
+        radius: rad,
+        types: ['doctor','hospital','pharmacy','physicians','dentist' ],
+        componentRestrictions: {country: 'USA'},
+      }, 
+        function processResults(results, status, pagination) {
+        console.log('pr called');
+          if (status !== google.maps.places.PlacesServiceStatus.OK) {
+            
+            return;
+          } 
+          else {
+           
+            for(var i=0;i<results.length;i++){
+              service.getDetails({
+                  placeId: results[i].place_id
+                },
+                function(place,status){
+                  if(status === google.maps.places.PlacesServiceStatus.OK){
+                  $('<div class="well"><a><h4>'+place.name+'</h4></a>'+
+                  '<p>'+place.formatted_address+'</p>'+
+                  '<a target="_blank" href="viewdoctor.html?fn='+place.name+'&addrs='+place.formatted_address+'">'+'View on map'+'</a></div>').appendTo('#docs-div');
+                  }
+                });
+            }
+           
+            if (pagination.hasNextPage) {
+              window.setTimeout(function(){
+                 pagination.nextPage();
+              },3000);
+                
+            }
+              
+                 
+          }      
+      });
+      } else {
+        alert("Geocode was not successful for the following reason: " + status);
+      }
+    });
+  
+}
+
+</script>
+
+
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyB-YyzS_SXIeh4QAhGtW2o4UCe4NWvSXnw&libraries=places&callback=initAutocomplete" async defer></script>
+</body>
+</html>

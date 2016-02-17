@@ -1,0 +1,174 @@
+<!doctype html>
+<html>
+<head>
+    <title>Doc Finder</title>
+    <link rel="stylesheet" href="/TestApp/webroot/css/bootstrap.min.css">  
+</head>
+<body>
+<div style="padding:10px;">
+	<form id="docFinderForm">
+		<div>
+			<input id="zip" type="text" name="zip" value="" placeholder="zipcode"/>
+			<input id="radius" type="text" name="radius" value="" placeholder="radius"/>
+		</div>
+		
+		 <span><b>OR</b></span></br>
+		<div>
+			<input id="city" type="text" name="city" value="" placeholder="city"/>
+		    <input id="state" type="text" name="state" value="" placeholder="state"/>
+	    </div>
+	    
+	    <span><b>OR</b></span></br>
+	  
+	   <select name='doctors'>
+	  	  <option name="doctor" value="" selected> Choose Specialist
+		  <option name="doctor" value="physicians"> Physicians
+		  <option  name="doctor" value="Eye Physicians" > Eye Physician
+		  <option  name="doctor" value="Psychiatry" > Psychiatry<br>
+		  <option  name="doctor" value="Dermatologist" > Dermatologist
+		  <option  name="doctor" value="Cardiologist" > Cardiologist
+		  <option  name="doctor" value="Gynecologist" > Gynecologist<br>
+		  <option  name="doctor" value="Neurosurgeon" > Neurosurgeon
+		  <option  name="doctor" value="Anesthesiologist" > Anesthesiologist
+		  <option  name="doctor" value="Nephrologist" > Nephrologist<br>
+		  <option  name="doctor" value="Pediatrician" > Pediatrician
+		  <option  name="doctor" value="Orthopedics" > Orthopedics
+		  <option  name="doctor" value="Cancer Specialists" > Cancer Specialist<br>
+		  <option  name="doctor" value="Primary Care" > Primary Care<br>
+	   </select>
+		
+		 <button id="queryBtn" type="button" class="btn btn-primary">Query</button>
+		 <span id="ajaxLoader">
+		     <img id="loading-image" src="/DocFinder/webroot/images/ajax-loader.gif" style="display:none;margin-top:-10px;margin-left:50px;"/>
+		 </span>
+	</form>
+	
+	
+	<div id="docs-div" class="well">
+		
+	</div>
+</div>
+
+    <script src="/DocFinder/webroot/scripts/jquery.min.js"></script>
+	<script src="/DocFinder/webroot/scripts/bootstrap.min.js"></script>
+	<script>
+	var zips=new Array();
+	$(document).ready(function(){
+	
+		$('#city').on('keyup',function(){
+			var citykey=$('#city').val();
+			if(citykey.length>=3){
+				$.ajax({
+					url:'query.lasso',
+					dataType:'json',
+					type:'post',
+					data:{'citykey':citykey},
+					success:function(data){
+						$.each(data.data,function(k,v){
+							$('#city').val(v.city);
+							$('#state').val(v.state);
+						});
+						
+						
+					}
+				
+				
+				});
+			
+			}
+		});
+	
+		$('#queryBtn').on('click',function(e){
+			
+			var zip=$('input[name="zip"]').val().substring(0,5);
+			var rad=$("input[name='radius']").val();
+			var spec=$("select[name='doctors']").val();
+			var city=$("input[name='city']").val();
+			var state=$("input[name='state']").val();
+			
+			if(rad.length!=0){
+				if(zip.length == 5 && /^[0-9]+$/.test(zip)){
+						$.ajax({
+							url:'query.lasso',
+							dataType:'json',
+							async:'true',
+							type:'post',
+							data:{zips:zip,radius:rad},
+							beforeSend: function() {
+					              $("#loading-image").show();
+					         
+					        },
+							success:function(data){
+								console.log(data.data);
+								$('#docs-div').html('');
+								$.each(data.data,function(k,v){
+									var addrs=v.street+' '+v.state+' '+v.zip_id+' '+v.country;
+									
+									$('<div class="well"><a><h4>'+v.firstName+' '+v.lastName+'</h4></a>'+
+									'<p>'+v.specialist+'</p>'+
+									'<p>'+v.street+'</p>'+
+									'<p>'+v.state+'</p>'+
+									'<p>'+v.zip_id+'</p>'+
+									'<p>'+v.country+'</p>'+'<p>'+v.contactNo+'</p>'+
+									'<a target="_blank" href="viewdoctor.html?fn='+v.firstName+'&ln='+v.lastName+'&spec='+v.specialist+'&addrs='+addrs+'&lat='+v.latitude+'&lng='+v.longitude+'&zip='+v.zip_id+'">'+'View on map'+'</a></div>').appendTo('#docs-div');
+								});
+		
+							},
+							complete: function() {
+								  $('input').val('');
+								  $('select').val('');
+					              $("#loading-image").hide();
+					        }
+						});
+					
+				}
+				else{
+					console.log('invalid zip');
+				}
+			}
+			
+			else if(zip.length == 5 && /^[0-9]+$/.test(zip) || spec!='' || city!='' & state!='' ){
+					console.log('in zip');
+					
+					$.ajax({
+						url:'query.lasso',
+						dataType:'json',
+						type:'post',
+						data:{zipcode:zip,doctors:spec,city:city,state:state},
+						beforeSend: function() {
+				              $("#loading-image").show();
+				         
+				        },
+						success:function(data){
+							console.log(data);
+							$('#docs-div').html('');
+							$.each(data.data,function(k,v){
+								var addrs=v.street+' '+v.state+' '+v.zip_id+' '+v.country;
+								
+								$('<div class="well"><a><h4>'+v.firstName+' '+v.lastName+'</h4></a>'+
+								'<p>'+v.specialist+'</p>'+
+								'<p>'+v.street+'</p>'+
+								'<p>'+v.state+'</p>'+
+								'<p>'+v.zip_id+'</p>'+
+								'<p>'+v.country+'</p>'+'<p>'+v.contactNo+'</p>'+
+								'<a target="_blank" href="viewdoctor.html?fn='+v.firstName+'&ln='+v.lastName+'&spec='+v.specialist+'&addrs='+addrs+'&lat='+v.latitude+'&lng='+v.longitude+'&zip='+v.zip_id+'">'+'View on map'+'</a></div>').appendTo('#docs-div');
+							});
+							
+						},
+						complete: function() {
+							$('input').val('');
+							$('select').val('');
+				            $("#loading-image").hide();
+				        },
+				        
+						
+					});
+			}
+			
+		});
+		
+	});
+	</script>
+
+</body>
+</html>

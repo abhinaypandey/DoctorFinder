@@ -173,8 +173,8 @@ $(document).ready(function(){
   }); 
 
   $('#next-btn').on('click',function(){
-    if(record_count==20){
-      page_start+=20;
+    if(record_count==records){
+      page_start+=records;
       loadData(specialist,page_start,records);
     }
     else{
@@ -185,7 +185,7 @@ $(document).ready(function(){
 
   $('#prev-btn').on('click',function(){
     if(page_start!=0){
-      page_start-=20;
+      page_start-=records;
       loadData(specialist,page_start,records);
     }
     else{
